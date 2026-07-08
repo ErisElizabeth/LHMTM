@@ -17,7 +17,7 @@
   const ROLE_CODES = {
     discharge: ["30209", "00061", "00060", "30208"],
     stage: ["30207", "00065", "00072"],
-    reservoir: ["30211", "00062", "72020"],
+    reservoir: ["63160", "30211", "00062", "72020"],
     groundwaterDepth: ["30210", "72019"],
     temperature: ["00010", "00011"],
     oxygen: ["00300"],
@@ -38,6 +38,7 @@
     "00072": ["STREAM STAGE FIELD", "m", convertLength],
     "30207": ["GAGE HEIGHT FIELD", "m", convertLength],
     "00062": ["IMPOUNDED SURFACE ELEVATION", "m", convertLength],
+    "63160": ["IMPOUNDED SURFACE ELEVATION", "m", convertLength],
     "30210": ["SUBSURFACE PIEZOMETRIC DEPTH", "m", convertLength],
     "30211": ["IMPOUNDED SURFACE ELEVATION", "m", convertLength],
     "72019": ["SUBSURFACE PIEZOMETRIC DEPTH", "m", convertLength],
@@ -76,6 +77,9 @@
     overlayStatus: document.getElementById("overlayStatus"),
     siteInput: document.getElementById("siteInput"),
     siteButton: document.getElementById("siteButton"),
+    latInput: document.getElementById("latInput"),
+    lonInput: document.getElementById("lonInput"),
+    geoButton: document.getElementById("geoButton"),
     refreshButton: document.getElementById("refreshButton"),
     geodeticStatus: document.getElementById("geodeticStatus"),
     dataStatus: document.getElementById("dataStatus"),
@@ -122,7 +126,8 @@
     dataset: null,
     hydrograph: [],
     animationHandle: 0,
-    lastManualSite: ""
+    lastManualSite: "",
+    lastManualPosition: null
   };
 
   function setText(node, value) {
@@ -191,6 +196,40 @@
     if (/^\d+$/.test(compact)) return `USGS-${compact}`;
     if (/^USGS-\d+$/.test(compact)) return compact;
     return compact;
+  }
+
+  function coordinateNumber(value) {
+    const cleaned = String(value || "").trim().replace(/−/g, "-");
+    return numberFrom(cleaned);
+  }
+
+  function parsePosition(latitudeValue, longitudeValue) {
+    const latitude = coordinateNumber(latitudeValue);
+    const longitude = coordinateNumber(longitudeValue);
+    if (!finite(latitude) || !finite(longitude)) return null;
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+    return { latitude, longitude, altitude: 0, override: true };
+  }
+
+  function queryPositionOverride() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("lat") && !params.has("latitude")) return null;
+    if (!params.has("lon") && !params.has("lng") && !params.has("longitude")) return null;
+    return parsePosition(
+      params.get("lat") || params.get("latitude"),
+      params.get("lon") || params.get("lng") || params.get("longitude")
+    );
+  }
+
+  function formatCoordinate(value) {
+    if (!finite(value)) return "";
+    return value.toFixed(6).replace(/\.?0+$/, "");
+  }
+
+  function populatePositionInputs(position) {
+    if (!position) return;
+    el.latInput.value = formatCoordinate(position.latitude);
+    el.lonInput.value = formatCoordinate(position.longitude);
   }
 
   function numericSiteId(siteId) {
@@ -332,6 +371,18 @@
     return `https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous/items?${params.toString()}`;
   }
 
+  async function fetchContinuousFeatures(params, maxPages = 5) {
+    const features = [];
+    let url = continuousUrl(params);
+    for (let page = 0; page < maxPages && url; page += 1) {
+      const data = await fetchJson(url);
+      features.push(...(data.features || []));
+      const next = (data.links || []).find((link) => link.rel === "next" && link.href);
+      url = next?.href || "";
+    }
+    return normalizeOgcFeatures(features);
+  }
+
   async function fetchContinuousByBbox(position, radiusKm, useParameterFilter) {
     const params = new URLSearchParams({
       f: "json",
@@ -340,8 +391,7 @@
       datetime: recentInterval(4)
     });
     if (useParameterFilter) params.set("parameter_code", TARGET_CODES.join(","));
-    const data = await fetchJson(continuousUrl(params));
-    return normalizeOgcFeatures(data.features || []);
+    return fetchContinuousFeatures(params, 4);
   }
 
   async function fetchContinuousBySite(siteId, useParameterFilter) {
@@ -352,8 +402,7 @@
       datetime: recentInterval(7)
     });
     if (useParameterFilter) params.set("parameter_code", TARGET_CODES.join(","));
-    const data = await fetchJson(continuousUrl(params));
-    return normalizeOgcFeatures(data.features || []);
+    return fetchContinuousFeatures(params, 6);
   }
 
   function normalizeOgcFeatures(features) {
@@ -497,7 +546,34 @@
     });
   }
 
+  function stationHasRole(station, role) {
+    if (!station?.observations?.length) return false;
+    const codes = new Set(Object.keys(latestByCode(station.observations)));
+    return (ROLE_CODES[role] || []).some((code) => codes.has(code));
+  }
+
+  function stationRoleCount(station) {
+    if (!station?.observations?.length) return 0;
+    const codes = new Set(Object.keys(latestByCode(station.observations)));
+    return Object.values(ROLE_CODES).reduce((sum, roleCodes) =>
+      sum + (roleCodes.some((code) => codes.has(code)) ? 1 : 0), 0);
+  }
+
+  function stationUtility(station) {
+    if (!station) return -Infinity;
+    return (stationHasRole(station, "discharge") ? 10000 : 0) +
+      stationRoleCount(station) * 1000 +
+      (finite(station.score) ? station.score : 0);
+  }
+
+  function rememberCandidate(current, station, mode) {
+    if (!station) return current;
+    const candidate = { station, mode, utility: stationUtility(station) };
+    return !current || candidate.utility > current.utility ? candidate : current;
+  }
+
   async function loadNearbyDataset(position) {
+    let fallback = null;
     for (const radiusKm of SEARCH_RADII_KM) {
       setText(el.overlayStatus, `USGS SEARCH RADIUS: ${radiusKm} km`);
       let observations = [];
@@ -513,19 +589,29 @@
       }
 
       const station = selectBestStation(observations, position);
-      if (station) return hydrateDataset(station, position, `OGC / ${radiusKm} km`);
+      if (station) {
+        fallback = rememberCandidate(fallback, station, `OGC / ${radiusKm} km / SPARSE`);
+        if (stationHasRole(station, "discharge")) {
+          return hydrateDataset(station, position, `OGC / ${radiusKm} km`);
+        }
+      }
 
       try {
         const sites = await fetchLegacyCandidateSites(position, radiusKm);
-        if (sites[0]) {
-          const legacyObservations = await fetchLegacyIv(sites[0].siteId);
-          const legacyStation = selectBestStation(legacyObservations, position, sites[0]);
-          if (legacyStation) return hydrateDataset(legacyStation, position, `NWIS-IV / ${radiusKm} km`);
+        for (const site of sites.slice(0, 3)) {
+          const legacyObservations = await fetchLegacyIv(site.siteId);
+          const legacyStation = selectBestStation(legacyObservations, position, site);
+          if (!legacyStation) continue;
+          fallback = rememberCandidate(fallback, legacyStation, `NWIS-IV / ${radiusKm} km / SPARSE`);
+          if (stationHasRole(legacyStation, "discharge")) {
+            return hydrateDataset(legacyStation, position, `NWIS-IV / ${radiusKm} km`);
+          }
         }
       } catch (error) {
         console.warn(error);
       }
     }
+    if (fallback) return hydrateDataset(fallback.station, position, fallback.mode);
     return sampleDataset(position);
   }
 
@@ -541,8 +627,16 @@
         console.warn(fallbackError);
       }
     }
-    if (!observations.length) observations = await fetchLegacyIv(siteId);
-    const station = selectBestStation(observations, state.position || DEFAULT_POSITION, { siteId });
+    let station = selectBestStation(observations, state.position || DEFAULT_POSITION, { siteId });
+    if (!station || !stationHasRole(station, "discharge")) {
+      try {
+        const legacyObservations = await fetchLegacyIv(siteId);
+        const legacyStation = selectBestStation(legacyObservations, state.position || DEFAULT_POSITION, { siteId });
+        if (stationUtility(legacyStation) > stationUtility(station)) station = legacyStation;
+      } catch (error) {
+        console.warn(error);
+      }
+    }
     if (!station) throw new Error("CONTROL VOLUME TELEMETRY ABSENT");
     return hydrateDataset(station, state.position || station, "SITE OVERRIDE");
   }
@@ -716,7 +810,8 @@
 
     setText(el.sourceMode, `SOURCE: ${dataset.mode}`);
     setText(el.siteStatus, `CONTROL VOLUME: ${dataset.stationId}`);
-    setText(el.dataStatus, dataset.source === "SYNTHETIC" ? "TELEMETRY BUS: SYNTHETIC" : "TELEMETRY BUS: HOT");
+    setText(el.dataStatus, dataset.source === "SYNTHETIC" ? "TELEMETRY BUS: SYNTHETIC" :
+      discharge ? "TELEMETRY BUS: HOT" : "TELEMETRY BUS: SPARSE");
     setText(el.transportStatus, discharge ? "TRANSPORT FIELD: RESOLVED" : "TRANSPORT FIELD: ABSENT");
     setText(el.stationName, sanitizeVisibleText(dataset.stationName));
     setText(el.stationId, dataset.stationId);
@@ -941,16 +1036,26 @@
         dataset = await loadSiteDataset(options.siteId);
       } else {
         let position;
-        try {
-          if (new URLSearchParams(window.location.search).has("synthetic")) {
-            throw new Error("SYNTHETIC VECTOR REQUESTED");
+        const queryPosition = queryPositionOverride();
+        if (options.position || queryPosition) {
+          position = options.position || queryPosition;
+          state.lastManualPosition = position;
+          populatePositionInputs(position);
+          setText(el.geodeticStatus, "GEODETIC LOCK: OVERRIDE");
+          setText(el.overlayStatus, "GEODETIC VECTOR OVERRIDE ACCEPTED");
+        } else {
+          try {
+            if (new URLSearchParams(window.location.search).has("synthetic")) {
+              throw new Error("SYNTHETIC VECTOR REQUESTED");
+            }
+            position = await acquirePosition();
+            state.lastManualPosition = null;
+            setText(el.geodeticStatus, "GEODETIC LOCK: TRUE");
+          } catch (error) {
+            console.warn(error);
+            position = { ...DEFAULT_POSITION, synthetic: true };
+            setText(el.geodeticStatus, "GEODETIC LOCK: FALLBACK");
           }
-          position = await acquirePosition();
-          setText(el.geodeticStatus, "GEODETIC LOCK: TRUE");
-        } catch (error) {
-          console.warn(error);
-          position = { ...DEFAULT_POSITION, synthetic: true };
-          setText(el.geodeticStatus, "GEODETIC LOCK: FALLBACK");
         }
         state.position = position;
         dataset = await loadNearbyDataset(position);
@@ -970,7 +1075,13 @@
   function bindControls() {
     el.refreshButton.addEventListener("click", () => {
       const siteId = state.lastManualSite || "";
-      initialize(siteId ? { siteId } : {});
+      if (siteId) {
+        initialize({ siteId });
+      } else if (state.lastManualPosition) {
+        initialize({ position: state.lastManualPosition });
+      } else {
+        initialize();
+      }
     });
     el.siteButton.addEventListener("click", () => {
       const siteId = normalizeSiteId(el.siteInput.value);
@@ -983,8 +1094,26 @@
       el.siteInput.value = siteId;
       initialize({ siteId });
     });
+    el.geoButton.addEventListener("click", () => {
+      const position = parsePosition(el.latInput.value, el.lonInput.value);
+      if (!position) {
+        setText(el.geodeticStatus, "GEODETIC LOCK: REJECTED");
+        setText(el.siteStatus, "CONTROL VOLUME: INVALID GEODETIC VECTOR");
+        return;
+      }
+      state.lastManualSite = "";
+      state.lastManualPosition = position;
+      el.siteInput.value = "";
+      populatePositionInputs(position);
+      initialize({ position });
+    });
     el.siteInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") el.siteButton.click();
+    });
+    [el.latInput, el.lonInput].forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") el.geoButton.click();
+      });
     });
     window.addEventListener("resize", () => drawHydrograph(performance.now()));
   }

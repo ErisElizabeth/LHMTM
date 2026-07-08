@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LHMTM</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=geo-override-1" />
   </head>
   <body>
     <div
@@ -47,6 +47,37 @@
               aria-label="ASSIGN CONTROL VOLUME"
             >
               ⌖
+            </button>
+          </div>
+          <div
+            class="geo-control"
+            role="group"
+            aria-label="GEODETIC VECTOR OVERRIDE"
+          >
+            <input
+              id="latInput"
+              autocomplete="off"
+              inputmode="decimal"
+              placeholder="LAT 38.8977"
+              type="search"
+              aria-label="GEODETIC LATITUDE DECIMAL DEGREES"
+            />
+            <input
+              id="lonInput"
+              autocomplete="off"
+              inputmode="decimal"
+              placeholder="LON -77.0365"
+              type="search"
+              aria-label="GEODETIC LONGITUDE DECIMAL DEGREES"
+            />
+            <button
+              id="geoButton"
+              class="icon-button"
+              type="button"
+              title="ASSIGN GEODETIC VECTOR"
+              aria-label="ASSIGN GEODETIC VECTOR"
+            >
+              ⦿
             </button>
           </div>
           <button
@@ -250,6 +281,6 @@
     </div>
 
     <noscript>HYDROLOGICAL COMPUTATION CORE ABSENT</noscript>
-    <script src="app.js"></script>
+    <script src="app.js?v=geo-override-1"></script>
   </body>
 </html>

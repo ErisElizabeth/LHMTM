@@ -20,6 +20,9 @@ position, selects a control volume, and renders the result as:
 The app can also be aimed manually at a USGS monitoring location identifier such
 as `USGS-01646500`.
 
+The geodetic vector can be overridden with decimal-degree coordinates in the UI,
+or by URL query parameters such as `?lat=38.8977&lon=-77.0365`.
+
 The source network is the public USGS hydrological API estate:
 
 - `https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous`

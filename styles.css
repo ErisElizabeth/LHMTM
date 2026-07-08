@@ -119,30 +119,53 @@ h2 {
   gap: 10px;
 }
 
-.site-control {
+.site-control,
+.geo-control {
   display: grid;
-  grid-template-columns: minmax(170px, 230px) 48px;
   min-height: 100%;
 }
 
-.site-control input {
+.site-control {
+  grid-template-columns: minmax(170px, 230px) 48px;
+}
+
+.geo-control {
+  grid-template-columns: minmax(96px, 116px) minmax(106px, 128px) 48px;
+}
+
+.site-control input,
+.geo-control input {
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--line);
   border-right: 0;
-  border-radius: 4px 0 0 4px;
   color: var(--green);
   background: rgba(5, 7, 6, 0.72);
   outline: 0;
 }
 
-.site-control input:focus {
+.site-control input {
+  border-radius: 4px 0 0 4px;
+}
+
+.geo-control input:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.geo-control input:nth-child(2) {
+  border-radius: 0;
+}
+
+.site-control input:focus,
+.geo-control input:focus {
   border-color: var(--amber);
   box-shadow: inset 0 0 0 1px rgba(255, 204, 98, 0.18);
 }
 
-.site-control .icon-button {
+.site-control .icon-button,
+.geo-control .icon-button {
   border-radius: 0 4px 4px 0;
 }
 
@@ -522,6 +545,10 @@ td:nth-child(3) {
 
   .site-control {
     grid-template-columns: minmax(0, 1fr) 48px;
+  }
+
+  .geo-control {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px;
   }
 
   .icon-button {
