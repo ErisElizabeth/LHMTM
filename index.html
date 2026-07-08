@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LHMTM</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div
+      id="acquisitionOverlay"
+      class="acquisition active"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="hex-spinner" aria-hidden="true">
+        <div class="hex-core"></div>
+        <div class="hex-hand"></div>
+      </div>
+      <div class="acquisition-copy">
+        <p>RESOLVING HYDROLOGICAL CONTROL VOLUME</p>
+        <span id="overlayStatus">USGS TELEMETRY BUS PENDING</span>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">LOCAL HYDROLOGICAL MASS TRANSPORT MONITOR</p>
+          <h1>LHMTM</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="site-control">
+            <input
+              id="siteInput"
+              autocomplete="off"
+              inputmode="text"
+              placeholder="USGS-01646500"
+              type="search"
+              aria-label="USGS MONITORING LOCATION IDENTIFIER"
+            />
+            <button
+              id="siteButton"
+              class="icon-button"
+              type="button"
+              title="ASSIGN CONTROL VOLUME"
+              aria-label="ASSIGN CONTROL VOLUME"
+            >
+              ⌖
+            </button>
+          </div>
+          <button
+            id="refreshButton"
+            class="icon-button"
+            type="button"
+            title="REINITIATE ACQUISITION"
+            aria-label="REINITIATE ACQUISITION"
+          >
+            ⟳
+          </button>
+          <div class="status-stack" aria-live="polite">
+            <span id="geodeticStatus">GEODETIC LOCK: PENDING</span>
+            <span id="dataStatus">TELEMETRY BUS: COLD</span>
+            <span id="siteStatus">CONTROL VOLUME: UNRESOLVED</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="instrument-grid">
+        <section class="panel panel-primary" aria-labelledby="transportTitle">
+          <div class="panel-head">
+            <h2 id="transportTitle">DIHYDROGEN MONOXIDE MASS TRANSPORT CORE</h2>
+            <span id="transportStatus">TRANSPORT FIELD: IDLE</span>
+          </div>
+          <div class="primary-readout">
+            <span>VOLUMETRIC FLUID DISCHARGE</span>
+            <strong id="discharge">-- m³·s⁻¹</strong>
+          </div>
+          <div class="metric-grid three">
+            <div class="metric">
+              <span>DIHYDROGEN MONOXIDE MASS TRANSPORT RATE</span>
+              <strong id="massTransport">-- kg·s⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>CONTROL-VOLUME TRANSIT PER KILOSECOND</span>
+              <strong id="volumePerKs">-- m³·ks⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>TRANSPORT VECTOR DATA AGE</span>
+              <strong id="dischargeAge">-- ks</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="registryTitle">
+          <div class="panel-head">
+            <h2 id="registryTitle">CONTROL VOLUME REGISTRATION</h2>
+            <span id="sourceMode">SOURCE: PENDING</span>
+          </div>
+          <div class="metric-list">
+            <div class="metric">
+              <span>MONITORING LOCATION DESIGNATION</span>
+              <strong id="stationName">--</strong>
+            </div>
+            <div class="axis-list tight">
+              <div><span>ID</span><strong id="stationId">--</strong></div>
+              <div><span>ΔR</span><strong id="stationDistance">-- m</strong></div>
+              <div><span>HUC</span><strong id="hydrologicUnit">--</strong></div>
+            </div>
+            <div class="metric">
+              <span>HYDROLOGICAL FEATURE CLASS</span>
+              <strong id="siteType">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="surfaceTitle">
+          <div class="panel-head">
+            <h2 id="surfaceTitle">SURFACE ELEVATION RELATIVE TO DATUM</h2>
+            <span id="datumStatus">DATUM: UNRESOLVED</span>
+          </div>
+          <div class="metric-list">
+            <div class="metric">
+              <span>GAGE HEIGHT FIELD</span>
+              <strong id="gageHeight">-- m</strong>
+            </div>
+            <div class="metric">
+              <span>IMPOUNDED SURFACE ELEVATION</span>
+              <strong id="reservoirElevation">-- m</strong>
+            </div>
+            <div class="metric">
+              <span>SUBSURFACE PIEZOMETRIC DEPTH</span>
+              <strong id="groundwaterDepth">-- m</strong>
+            </div>
+            <div class="metric">
+              <span>CHANNEL BULK FLOW VELOCITY</span>
+              <strong id="streamVelocity">-- m·s⁻¹</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="chemTitle">
+          <div class="panel-head">
+            <h2 id="chemTitle">AQUEOUS THERMOCHEMICAL STATE</h2>
+            <span>ANALYTE REF: DIHYDROGEN MONOXIDE MATRIX</span>
+          </div>
+          <div class="metric-grid two">
+            <div class="metric">
+              <span>AQUEOUS THERMAL STATE</span>
+              <strong id="aqueousTemperature">-- K</strong>
+            </div>
+            <div class="metric">
+              <span>DISSOLVED OXYGEN CONCENTRATION</span>
+              <strong id="oxygen">-- kg·m⁻³</strong>
+            </div>
+            <div class="metric">
+              <span>ELECTROLYTIC CONDUCTANCE</span>
+              <strong id="conductance">-- S·m⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>HYDROGEN ION ACTIVITY INDEX</span>
+              <strong id="ph">--</strong>
+            </div>
+            <div class="metric">
+              <span>PARTICULATE OPTICAL OBSCURATION</span>
+              <strong id="turbidity">--</strong>
+            </div>
+            <div class="metric">
+              <span>INFERRED BULK DENSITY</span>
+              <strong id="density">-- kg·m⁻³</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="forcingTitle">
+          <div class="panel-head">
+            <h2 id="forcingTitle">METEORIC DIHYDROGEN MONOXIDE FORCING</h2>
+            <span id="forcingStatus">DEPOSITION FIELD: IDLE</span>
+          </div>
+          <div class="metric-grid two">
+            <div class="metric">
+              <span>ACCUMULATED AREAL MASS LOADING</span>
+              <strong id="precipTotal">-- kg·m⁻²</strong>
+            </div>
+            <div class="metric">
+              <span>AREAL MASS LOADING FLUX</span>
+              <strong id="precipRate">-- kg·m⁻²·s⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>OBSERVED PARAMETER CHANNELS</span>
+              <strong id="channelCount">--</strong>
+            </div>
+            <div class="metric">
+              <span>TELEMETRY TEMPORAL ORIGIN</span>
+              <strong id="telemetryOrigin">-- ks UTC</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel hydrograph-panel" aria-labelledby="hydrographTitle">
+          <div class="panel-head">
+            <h2 id="hydrographTitle">HYDROGRAPHIC RETURN FIELD</h2>
+            <span id="hydrographStatus">SERIES: PENDING</span>
+          </div>
+          <div class="hydrograph-stage">
+            <canvas id="hydrographCanvas"></canvas>
+            <div class="hydrograph-reticle" aria-hidden="true"></div>
+          </div>
+          <div class="metric-grid four">
+            <div class="metric">
+              <span>LOCAL MINIMUM</span>
+              <strong id="seriesMin">-- m³·s⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>LOCAL MAXIMUM</span>
+              <strong id="seriesMax">-- m³·s⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>NET CHANGE</span>
+              <strong id="seriesDelta">-- m³·s⁻¹</strong>
+            </div>
+            <div class="metric">
+              <span>FINITE DIFFERENCE SLOPE</span>
+              <strong id="seriesSlope">-- m³·s⁻²</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel table-panel" aria-labelledby="telemetryTitle">
+          <div class="panel-head">
+            <h2 id="telemetryTitle">AUXILIARY PARAMETER REGISTER</h2>
+            <span id="tableStatus">REGISTER: EMPTY</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>PARAMETER</th>
+                  <th>PCODE</th>
+                  <th>SI-COMPLIANT VALUE</th>
+                  <th>AGE</th>
+                  <th>QUALIFIER</th>
+                </tr>
+              </thead>
+              <tbody id="telemetryBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <noscript>HYDROLOGICAL COMPUTATION CORE ABSENT</noscript>
+    <script src="app.js"></script>
+  </body>
+</html>
